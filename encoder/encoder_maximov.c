@@ -32,6 +32,7 @@
 
 
 #include "rotary_encoder.h"
+#include "encoder_err.h"
 
 #define GPIO_PIN_A 8
 #define GPIO_PIN_B 11
@@ -59,23 +60,23 @@ void callback(int way)
   sleep(1);
   fd = open(encoder_fifo, O_WRONLY);
   if (fd == -1) {
-    printf("Failed open encoder_fifo\r\n");
+    putErr(E_OPEN_FAILED);
     goto err_callback;
   }
 
   ret = clock_gettime(CLOCK_REALTIME, tp);
   if (ret != -1) {
-    printf("Failed to get a clock real time\r\n");
+    putErr(E_READ_TIME);
     goto err_callback;
   }
 
   pos -= way*360/20;
 
-  if (!quiet) { 
+  if (!quiet) {
     printf("angle increment: %d\n", pos);
     goto err_callback;
   }
-  
+
   ret = write(fd, pos, sizeof(pos));
   if (ret == -1) {
     printf("Failed write in encoder_fifo value is %d\r\n", pos);
@@ -83,9 +84,8 @@ void callback(int way)
   }
 
   printf("Current value position: %d\r\n", pos);
-
   fflush(stdout);
-  close(fd)
+  close(fd);
 
 err_callback:
   fflush(stdout);
@@ -117,7 +117,7 @@ int main(int argc, char *argv[])
 
   ret = mkfifo(encoder_fifo, 0666);
   if (!ret) {
-    printf("Failed create encoder_fifo\r\n");
+    putErr(E_CREATE_FAILED);
     return 0;
   }
 
