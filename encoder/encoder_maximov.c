@@ -24,11 +24,20 @@
 #include <string.h>
 #include <unistd.h>
 #include <pigpio.h>
+#include <time.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <fcntl.h>
+
+
 #include "rotary_encoder.h"
 
 #define GPIO_PIN_A 8
 #define GPIO_PIN_B 11
+
 int quiet = 0;
+
 void help()
 {
         printf("    Use this application for reading from encoder\n");
@@ -41,35 +50,84 @@ void help()
 
 void callback(int way)
 {
-        static int pos = 0;
-        pos -= way*360/20;
-        if (!quiet)
-                printf("angle increment: %d\n", pos);
-        if (quiet)
-                printf("%d\n", pos);
-        fflush(stdout);
+  int ret;
+  int fd;
+  char *encoder_fifo = "encoder_fifo";
+  struct timespec *tp;
+  static int pos = 0;
+
+  sleep(1);
+  fd = open(encoder_fifo, O_WRONLY);
+  if (fd == -1) {
+    printf("Failed open encoder_fifo\r\n");
+    goto err_callback;
+  }
+
+  ret = clock_gettime(CLOCK_REALTIME, tp);
+  if (ret != -1) {
+    printf("Failed to get a clock real time\r\n");
+    goto err_callback;
+  }
+
+  pos -= way*360/20;
+
+  if (!quiet) { 
+    printf("angle increment: %d\n", pos);
+    goto err_callback;
+  }
+  
+  ret = write(fd, pos, sizeof(pos));
+  if (ret == -1) {
+    printf("Failed write in encoder_fifo value is %d\r\n", pos);
+    goto err_callback;
+  }
+
+  printf("Current value position: %d\r\n", pos);
+
+  fflush(stdout);
+  close(fd)
+
+err_callback:
+  fflush(stdout);
+  if (fd != -1) {
+    close(fd);
+  }
+  return;
 }
 
 int main(int argc, char *argv[])
 {
-        if (argc > 1) {
-                if ((strcmp(argv[1], "-h") == 0)) {
-                        help();
-                        return 0;
-                } else {
-                        if ((strcmp(argv[1], "-q") == 0)) {
-                                quiet = 1;
-                        }
-                }
-        }
-        if (!quiet)
-                printf("\nThe encoder application was started\n\n");
+  if (argc > 1) {
+    if ((strcmp(argv[1], "-h") == 0)) {
+        help();
+        return 0;
+    } else {
+      if ((strcmp(argv[1], "-q") == 0)) {
+              quiet = 1;
+      }
+    }
+  }
+  if (!quiet) {
+    printf("\nThe encoder application was started\n\n");
+  }
 
-        Pi_Renc_t *renc;
-        if (gpioInitialise() < 0)
-                return 1;
-        renc = Pi_Renc(GPIO_PIN_A, GPIO_PIN_B, callback);
-        sleep(300);
-        Pi_Renc_cancel(renc);
-        gpioTerminate();
+  char *encoder_fifo = "encoder_fifo";
+  int ret;
+  Pi_Renc_t *renc;
+
+  ret = mkfifo(encoder_fifo, 0666);
+  if (!ret) {
+    printf("Failed create encoder_fifo\r\n");
+    return 0;
+  }
+
+  if (gpioInitialise() < 0) {
+    return 1;
+  }
+
+  renc = Pi_Renc(GPIO_PIN_A, GPIO_PIN_B, callback);
+  sleep(300);
+  Pi_Renc_cancel(renc);
+  gpioTerminate();
+
 }
