@@ -21,6 +21,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.                                             *
  ******************************************************************************/
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <pigpio.h>
@@ -54,36 +55,37 @@ void callback(int way)
   int ret;
   int fd;
   char *encoder_fifo = "encoder_fifo";
-  struct timespec *tp;
   static int pos = 0;
 
   sleep(1);
+
+  time_t mytime = time(NULL);
+  char *time_str = ctime(&mytime);
+  time_str[strlen(time_str) - 1] = '\0';
+  printf("Current time: %s\r\n", time_str);
+
+  pos -= way*360/20;
+  char str[5];
+  if (!quiet) {
+    printf("angle increment: %d\n", pos);
+  }
+
+  printf("Current value position: %d\r\n", pos);
+
   fd = open(encoder_fifo, O_WRONLY);
   if (fd == -1) {
     putErr(E_OPEN_FAILED);
     goto err_callback;
   }
 
-  ret = clock_gettime(CLOCK_REALTIME, tp);
-  if (ret != -1) {
-    putErr(E_READ_TIME);
-    goto err_callback;
-  }
+  sprintf(str,"%d", pos);
 
-  pos -= way*360/20;
-
-  if (!quiet) {
-    printf("angle increment: %d\n", pos);
-    goto err_callback;
-  }
-
-  ret = write(fd, pos, sizeof(pos));
+  ret = write(fd, str, 5);
   if (ret == -1) {
     printf("Failed write in encoder_fifo value is %d\r\n", pos);
     goto err_callback;
   }
 
-  printf("Current value position: %d\r\n", pos);
   fflush(stdout);
   close(fd);
 
@@ -116,18 +118,15 @@ int main(int argc, char *argv[])
   Pi_Renc_t *renc;
 
   ret = mkfifo(encoder_fifo, 0666);
-  if (!ret) {
-    putErr(E_CREATE_FAILED);
-    return 0;
-  }
 
   if (gpioInitialise() < 0) {
     return 1;
   }
-
+  
   renc = Pi_Renc(GPIO_PIN_A, GPIO_PIN_B, callback);
   sleep(300);
   Pi_Renc_cancel(renc);
+  fflush(stdout);
   gpioTerminate();
 
 }

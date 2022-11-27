@@ -1,4 +1,5 @@
 #pragma once
+
 typedef enum {
   E_CMD_OK,
   E_OPEN_FAILED,
@@ -10,7 +11,7 @@ typedef enum {
 
 void putErr(types_err code)
 {
-  switch(types_err) {
+  switch(code) {
     case E_OPEN_FAILED:
       printf("Failed open to file!\r\n");
     break;
@@ -33,6 +34,5 @@ void putErr(types_err code)
 
     default:
       printf("Uncorrect return value command!\r\n");
-
   }
 }

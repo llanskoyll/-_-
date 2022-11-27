@@ -3,6 +3,5 @@
 while true
 do
 	sleep 1
-	#curr_data=$(date +"%T.%N")
-	echo $(date +%s) >> time_sec
+	echo $(date +%s) >> time_data
 done
