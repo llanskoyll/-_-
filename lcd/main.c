@@ -48,7 +48,7 @@ int main(int argc, char* argv[]) {
 
 while (1) {
 
-    fd = open(argv[1], O_RDWR);
+    fd = open(argv[1], O_RDONLY);
     if (fd == -1) {
         printf("Failed to open\r\n");
     }

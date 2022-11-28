@@ -134,19 +134,6 @@ int main(int argc, char *argv[])
 
   renc = Pi_Renc(GPIO_PIN_A, GPIO_PIN_B, callback);
   sleep(300);
-// while (1) {
-//   fd = open(encoder_fifo, O_WRONLY);
-//   if (fd == -1) {
-//     putErr(E_OPEN_FAILED);
-//   }
-
-//   sprintf(str,"%d", pos);
-
-//   ret = write(fd, str, 5);
-//   if (ret == -1) {
-//     printf("Failed write in encoder_fifo value is %d\r\n", pos);
-//   }
-// }
   Pi_Renc_cancel(renc);
   fflush(stdout);
   gpioTerminate();
