@@ -41,16 +41,13 @@ void help(char* prog) {
 }
 
 int main(int argc, char* argv[]) {
+
     lcd_init();
-
-    // if(argc != 3) {
-    //     help(argv[0]);
-    // } 
-
     int fd;
     char str[5];
 
-check:
+while (1) {
+
     fd = open(argv[1], O_RDWR);
     if (fd == -1) {
         printf("Failed to open\r\n");
@@ -60,11 +57,9 @@ check:
     read(fd, str, 5);
     printf("\r\n%s\r\n", str);
     demo_text(str);
-
-
-    lcd_deinit();
     close(fd);
-
+}
+    lcd_deinit();
     return EXIT_SUCCESS;
 }
 

@@ -30,7 +30,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <fcntl.h>
-
+#include <pthread.h>
 
 #include "rotary_encoder.h"
 #include "encoder_err.h"
@@ -39,6 +39,7 @@
 #define GPIO_PIN_B 11
 
 int quiet = 0;
+int pos = 0;
 
 void help()
 {
@@ -55,22 +56,13 @@ void callback(int way)
   int ret;
   int fd;
   char *encoder_fifo = "encoder_fifo";
-  static int pos = 0;
 
-  sleep(1);
-
-  time_t mytime = time(NULL);
-  char *time_str = ctime(&mytime);
-  time_str[strlen(time_str) - 1] = '\0';
-  printf("Current time: %s\r\n", time_str);
-
+  
   pos -= way*360/20;
   char str[5];
   if (!quiet) {
     printf("angle increment: %d\n", pos);
   }
-
-  printf("Current value position: %d\r\n", pos);
 
   fd = open(encoder_fifo, O_WRONLY);
   if (fd == -1) {
@@ -97,6 +89,17 @@ err_callback:
   return;
 }
 
+void *print_while(void *args) {
+  while(1) {
+    sleep(1);
+    time_t mytime = time(NULL);
+    char *time_str = ctime(&mytime);
+    time_str[strlen(time_str) - 1] = '\0';
+    printf("Current time: %s\r\n", time_str);
+    printf("Current value position: %d\r\n", pos);
+  }
+}
+
 int main(int argc, char *argv[])
 {
   if (argc > 1) {
@@ -115,16 +118,35 @@ int main(int argc, char *argv[])
 
   char *encoder_fifo = "encoder_fifo";
   int ret;
+  char str[5];
+  int fd;
   Pi_Renc_t *renc;
 
-  ret = mkfifo(encoder_fifo, 0666);
+  pthread_t thread;
+  pthread_create(&thread, NULL, print_while, NULL);
+  pthread_detach(thread);
 
+  ret = mkfifo(encoder_fifo, 0666);
+  
   if (gpioInitialise() < 0) {
     return 1;
   }
-  
+
   renc = Pi_Renc(GPIO_PIN_A, GPIO_PIN_B, callback);
   sleep(300);
+// while (1) {
+//   fd = open(encoder_fifo, O_WRONLY);
+//   if (fd == -1) {
+//     putErr(E_OPEN_FAILED);
+//   }
+
+//   sprintf(str,"%d", pos);
+
+//   ret = write(fd, str, 5);
+//   if (ret == -1) {
+//     printf("Failed write in encoder_fifo value is %d\r\n", pos);
+//   }
+// }
   Pi_Renc_cancel(renc);
   fflush(stdout);
   gpioTerminate();
