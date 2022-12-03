@@ -15,7 +15,7 @@
 
 static void *button_handler(void *argv);
 static void *pipe_handler(void *argv);
-static void *time_counter(NULL);
+static void *time_counter();
 
 static void time_print(int time_sec);
 

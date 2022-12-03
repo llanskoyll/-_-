@@ -44,17 +44,16 @@ int main(int argc, char* argv[]) {
 
     lcd_init();
     int fd;
-    char str[5];
+    char str[10];
 
 while (1) {
-
     fd = open(argv[1], O_RDONLY);
     if (fd == -1) {
         printf("Failed to open\r\n");
     }
 
     printf("\r\n%s\r\n", argv[1]);
-    read(fd, str, 5);
+    read(fd, str, 10);
     printf("\r\n%s\r\n", str);
     demo_text(str);
     close(fd);

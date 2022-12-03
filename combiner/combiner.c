@@ -3,49 +3,78 @@
 pthread_mutex_t mutex_button_record = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_time = PTHREAD_MUTEX_INITIALIZER;
 
-extern bool button_record = false;
-extern time_t _time = 0;
+bool button_record;
+time_t _time;
 
 // т.к время может быть не "настоящим", а результатом изменений, то сделаем такой костыль
-static void *time_counter(NULL) 
+static void *time_counter() 
 {
-    sleep(1);
-    phtread_mutex_lock(&mutex_time);
+    int fd;
+    int ret;
+    char time_to_lcd[10];
+ 
+    while(1) {
+        sleep(1);
+        pthread_mutex_lock(&mutex_time);
+        printf("Текущие время : %ld\n", _time);
+        _time++;
 
-    _time++;
+        pthread_mutex_unlock(&mutex_time);
 
-    pthread_mutex_unlock(&mutex_time);
+        // канал для lcd
+        sprintf(time_to_lcd, "%d", _time);
+
+        fd = open("lcd_fifo", O_WRONLY);
+        if (fd == -1) {
+            printf("Failed open pipe for write\n");
+        }
+
+        ret = write(fd, time_to_lcd, sizeof(time_to_lcd));
+        if (ret == -1) {
+            printf("Failed write to pipe!\n");
+        }
+        close(fd);
+    }
 }
 // функция обработки кнопок
+// текущий gpio кнопки 26
 static void *button_handler(void *argv)
 {
-    int fd = 0;
-    int value_button_record_cur;
-    char value_button_record;
+    while (1) {
+        sleep(1);
+        FILE *fp = 0;
+        int fd;
+        char value_;
+        int value_button_record;
 
-// чтение значение из файла нажатой кнопки
-    fd = fopen(file_name, "r");
+        fp = fopen("/sys/class/gpio/gpio26/value", "r");
 
-    value_button_record = fgetc(file);
-    value_button_record_cur = atoi(value_button_record);
+    // чтение значение из файла нажатой кнопки
+        fread((void *)&value_, sizeof(value_), sizeof(value_), fp);
 
-    pthread_mutex_lock(&mutex_button_record);
+        pthread_mutex_lock(&mutex_button_record);
 
-    // кнопка нажата button_record = true
-    if (value_button_record_cur) {
-        button_record = true;    
-    } else {
-        button_record = false;
+        // кнопка нажата button_record = true
+        if (!atoi(&value_)) {
+            printf("Кнопка нажата!\n");
+            button_record = true;    
+        } else {
+            printf("Кнопка не нажата!\n");
+            button_record = false;
+        }
+
+        pthread_mutex_unlock(&mutex_button_record);
+
+        fclose(fp);
     }
-
-    pthread_mutex_unlock(&mutex_button_record);
 }
 
 static void time_print(int time_sec) 
 {
+    usleep(500);
     pthread_mutex_lock(&mutex_time);
 
-    _time = _time - time_sec;
+    _time = _time + time_sec;
     printf("Время изменено на %ld!\n", _time);
 
     pthread_mutex_unlock(&mutex_time);
@@ -54,8 +83,9 @@ static void time_print(int time_sec)
 // функция обработки именнованнымии каналов
 static void *pipe_handler(void *argv)
 {
+    mkfifo("lcd_fifo", 0666);
     int fd;
-    char str[5];
+    char time_to_encoder[5];
     int ret;
     int value_from_pipe;
  
@@ -64,7 +94,6 @@ static void *pipe_handler(void *argv)
         char *path = (char *)argv;
         fd = 0;
 
-        // printf("%s\n", path);
 
         // чтение из encoder fifo
         fd = open(path, O_RDONLY);
@@ -72,35 +101,20 @@ static void *pipe_handler(void *argv)
             printf("Failed open to pipe!\n");
         }
 
-        read(fd, (void *)str, sizeof(value_from_pipe));
+        read(fd, (void *)time_to_encoder, sizeof(value_from_pipe));
         close(fd);
 
-        value_from_pipe = (atoi(str))/18;
+        value_from_pipe = (atoi(time_to_encoder))/18;
 
         pthread_mutex_lock(&mutex_button_record);
         
-        if (mutex_button_record) {
+        if (button_record) {
             printf("Сигнал изменение времени на %d секунд\n", value_from_pipe);
             time_print(value_from_pipe);
         }
 
         pthread_mutex_unlock(&mutex_button_record);
 
-        // канал для lcd
-        mkfifo("lcd_fifo", 0666);
-        sprintf(str, "%d", value_from_pipe);
-
-        fd = open("lcd_fifo", O_WRONLY);
-        if (fd == -1) {
-            printf("Failed open pipe for write\n");
-        }
-
-        ret = write(fd, str, 5);
-        if (ret == -1) {
-            printf("Failed write to pipe!\n");
-        }
-
-        close(fd);
     }
 }
 
@@ -111,6 +125,8 @@ int main(int argc, char **argv)
         printf("Uncorrect count argument !\n");
         return 0;
     }
+
+    button_record = false;
     _time = time(NULL);
     
     pthread_t thread_button_handler; // поток для обрботки кнопок
