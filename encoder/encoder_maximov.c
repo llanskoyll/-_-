@@ -31,6 +31,7 @@
 #include <sys/types.h>
 #include <fcntl.h>
 #include <pthread.h>
+#include <stdbool.h>
 
 #include "rotary_encoder.h"
 #include "encoder_err.h"
@@ -38,8 +39,36 @@
 #define GPIO_PIN_A 8
 #define GPIO_PIN_B 11
 
+spthread_mutext_t mutex_signal_exit = PTHREAD_MUTEX_INITIALIZER;
+
 int quiet = 0;
 int pos = 0;
+bool signal_exit;
+
+static void *signal_catch()
+{
+  int fd;
+  char signalch[1];
+  int signaldec;
+  while (1) {
+      fd = open("../signal_encoder", O_WRONLY);
+      if (fd == -1) {
+        printf("Failed open to singal_encoder\n");
+      }
+
+      read(fd, (void *)signalch, sizeof(signach));
+
+      signaldec = atoi(signalch);
+      pthread_mutex_lock(&mutex_signal_exit);
+      if (signaldec) {
+          signal_exit = true;
+      }
+      pthread_mutex_unclock(&mutex_signal_exit);
+      if (signal_exit) {
+        exit(0);
+      } 
+  }
+}
 
 void help()
 {
@@ -120,11 +149,23 @@ int main(int argc, char *argv[])
   int ret;
   char str[5];
   int fd;
+  bool signal_exit = false;
+
   Pi_Renc_t *renc;
 
   pthread_t thread;
+  pthread_t thread_signal;
+
+  pthread_create(&thread_signal, NULL, signal_catch, NULL);
   pthread_create(&thread, NULL, print_while, NULL);
-  pthread_detach(thread);
+  pthread_join(&thread_signal);
+  pthread_mutex_lock(&mutex_signal_exit);
+  if (signal_exit) {
+    exit(0);
+  }
+  pthread_mutex_unclock(&mutex_signal_exit);
+
+  pthread_join(&thread);
 
   ret = mkfifo(encoder_fifo, 0666);
   

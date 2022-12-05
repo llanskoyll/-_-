@@ -3,7 +3,9 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <fcntl.h>
-
+#include <time.h>
+#include <pthread.h>
+#include <stdbool.h>
 #include "gdfontg.h"
 
 #define FONT_SIZE_X 9
@@ -11,8 +13,35 @@
 #define STRING_MARGIN 5
 #define STRING_LENGTH (int)(LCD_WIDTH / FONT_SIZE_X - 1)
 
-// Demo text
+pthread_mutex_t mutex_signal_exit = PTHREAD_MUTEX_INITIALIZER;
+bool signal_exit;
 
+void *signal_catch()
+{
+    while (1) {
+        sleep(1);
+        char signalch[1];
+        int signaldec;
+        int fd;
+        
+        // чтение из fifo
+        fd = open("../lcd/signal_lcd", "O_RONLY");
+        if (fd == -1) {
+            printf("Failed open to signal_lcd !\n");
+        }
+
+        read(fd, (void *)signalch, sizeof(signalch));
+        signaldec = atoi(signalch);
+
+        pthread_mutex_lock(&mutex_signal_exit);
+            if (signaldec) {
+                signal_exit = true;
+            }
+        pthread_mutex_unlock(&mutex_signal_exit);
+    }
+}
+
+// Demo text
 void demo_text(char* text) {
 
     gdImagePtr im = gdImageCreateTrueColor(LCD_WIDTH, LCD_HEIGHT);
@@ -45,8 +74,19 @@ int main(int argc, char* argv[]) {
     lcd_init();
     int fd;
     char str[10];
+    bool signal_exit = false;
+    
+    pthread_t thread_signal;
 
+    thread_create(&thread_signal, NULL, signal_catch, NULL);
 while (1) {
+
+    thread_mutex_lock(&mutex_signal_exit); 
+        if (signal_exit) {
+            exit(0);
+        }
+    thread_mutex_unlock(&mutex_signal_exit);
+
     fd = open(argv[1], O_RDONLY);
     if (fd == -1) {
         printf("Failed to open\r\n");
@@ -58,8 +98,8 @@ while (1) {
     demo_text(str);
     close(fd);
 }
+    thread_join(thread_signal, NULL);
+
     lcd_deinit();
     return EXIT_SUCCESS;
 }
-
-// /home/pi/IVT_31/perkov/encoder/encoder_fifo
