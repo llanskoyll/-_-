@@ -65,7 +65,8 @@ static void *thread_console()
             pthread_mutex_lock(&mutex_signal_exit);
             signal_exit = true;
             pthread_mutex_unlock(&mutex_signal_exit);
-
+            pthread_exit(NULL);
+            
         } else if (command == "start display") {
             pid_display = fork();
             // передать в аргумент путь до lcd_fifo
