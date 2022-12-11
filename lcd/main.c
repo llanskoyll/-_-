@@ -18,26 +18,29 @@ bool signal_exit;
 
 void *signal_catch()
 {
+        char signalch;
+        int signaldec = 0;
+        int fd;
+        fd = open("../combiner/signal_lcd", O_RDONLY | O_NONBLOCK);
+
     while (1) {
         sleep(1);
-        char signalch[1];
-        int signaldec;
-        int fd;
-        
         // чтение из fifo
-        fd = open("../lcd/signal_lcd", "O_RONLY");
         if (fd == -1) {
             printf("Failed open to signal_lcd !\n");
         }
-
-        read(fd, (void *)signalch, sizeof(signalch));
-        signaldec = atoi(signalch);
-
+        read(fd, (void *)&signalch, sizeof(signalch));
+        signaldec = atoi(&signalch);
         pthread_mutex_lock(&mutex_signal_exit);
             if (signaldec) {
                 signal_exit = true;
+                printf("Signal Exit\n");
+                close(fd);
+                pthread_exit(NULL);
             }
         pthread_mutex_unlock(&mutex_signal_exit);
+
+
     }
 }
 
@@ -78,28 +81,25 @@ int main(int argc, char* argv[]) {
     
     pthread_t thread_signal;
 
-    thread_create(&thread_signal, NULL, signal_catch, NULL);
-while (1) {
+    pthread_create(&thread_signal, NULL, signal_catch, NULL);
 
-    thread_mutex_lock(&mutex_signal_exit); 
+    pthread_detach(thread_signal);
+while (1) {
+    pthread_mutex_lock(&mutex_signal_exit); 
         if (signal_exit) {
             exit(0);
         }
-    thread_mutex_unlock(&mutex_signal_exit);
-
+    pthread_mutex_unlock(&mutex_signal_exit);
     fd = open(argv[1], O_RDONLY);
     if (fd == -1) {
         printf("Failed to open\r\n");
     }
-
     printf("\r\n%s\r\n", argv[1]);
     read(fd, str, 10);
     printf("\r\n%s\r\n", str);
     demo_text(str);
     close(fd);
 }
-    thread_join(thread_signal, NULL);
-
     lcd_deinit();
     return EXIT_SUCCESS;
 }

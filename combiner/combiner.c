@@ -2,16 +2,16 @@
 
 pthread_mutex_t mutex_button_record = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_time = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t mutex_signal_exit = PTHREAD_RWLOCK_INITIALIZER;
+pthread_mutex_t mutex_signal_exit = PTHREAD_MUTEX_INITIALIZER;
 
 bool button_record;
 bool signal_exit;
 time_t _time;
 
-static void *thread_console()
+static void *thread_console_check()
 {
-    char command[50];
-    char signalch = "1";
+    char signalch_exit = '1';
+    int command = 0;
     int fd;
     int ret;
 
@@ -20,78 +20,90 @@ static void *thread_console()
 
     while (1) {
         sleep(1);
+        printf("Stop display - 1\n");
+        printf("Stop encoder - 2\n");
+        printf("Stop all - 3\n");
+        printf("Run display - 4\n");
+        printf("Run encoder - 5\n");
         printf("Введите команду : ");
-        scanf("%s\n", command);    
+        scanf("%d", &command);
 
-        if (command == "stop display") {
-            // передача в signal_lcd сигнал окончания программы
-            fd = open("signal_lcd", O_WRONLY);
-            if (fd == -1) {
-                printf("Failed open to signal_lcd !\n");
-            }
+        switch(command) {
+            case 1:
+                // передача в signal_lcd сигнал окончания программы
+                fd = open("signal_lcd", O_WRONLY);
+                if (fd == -1) {
+                    printf("Failed open to signal_lcd !\n");
+                }
 
-            ret = write(fd, (void *)signalch, sizeof(signalch));
-            printf("Stop display! \n");
+                ret = write(fd, (void *)&signalch_exit, sizeof(signalch_exit));
+                printf("Stop display! \n");
+                close(fd);
+                break;
+            case 2:
+                // передача в signal_encoder сигнал окончания программы
+                fd = open("signal_encoder", O_WRONLY);
+                if (fd == -1) {
+                    printf("Failed open to signal_encoder", O_WRONLY);
+                }
+                write(fd, (void *)&signalch_exit, sizeof(signalch_exit));
+                printf("Stop encoder! \n");
+                close(fd);
+                break;
+            case 3:
+                fd = open("signal_lcd", O_WRONLY);
+                if (fd == -1) {
+                    printf("Failed open to signal_lcd !\n");
+                }
 
-        } else if (command == "stop encoder") {
-            // передача в signal_encoder сигнал окончания программы
-            fd = open("signal_encoder", O_WRONLY);
-            if (fd == -1) {
-                printf("Failed open to signal_encoder", O_WRONLY);
-            }
+                ret = write(fd, (void *)&signalch_exit, sizeof(signalch_exit));
+                printf("Stop display! \n");
+                close(fd);
 
-            write(fd, (void *)signalch, sizeof(signalch));
-            printf("Stop encoder! \n");
-
-        } else if (command == "stop all") {
-            // передача в signal_lcd и signal_encoder
-            fd = open("signal_lcd", O_WRONLY);
-            if (fd == -1) {
-                printf("Failed open to signal_lcd !\n");
-            }
-
-            ret = write(fd, (void *)signalch, sizeof(signalch));
-            printf("Stop display! \n");
-
-            fd = -1;
-            fd = open("signal_encoder", O_WRONLY);
-            if (fd == -1) {
-                printf("Failed open to signal_encoder", O_WRONLY);
-            }
-
-            write(fd, (void *)signalch, sizeof(signalch));
-            printf("Stop encoder! \n");
-
-            pthread_mutex_lock(&mutex_signal_exit);
-            signal_exit = true;
-            pthread_mutex_unlock(&mutex_signal_exit);
-            pthread_exit(NULL);
-            
-        } else if (command == "start display") {
-            pid_display = fork();
+                fd = open("signal_encoder", O_WRONLY);
+                if (fd == -1) {
+                    printf("Failed open to signal_encoder", O_WRONLY);
+                }
+                write(fd, (void *)&signalch_exit, sizeof(signalch_exit));
+                printf("Stop encoder! \n");
+                close(fd);
+                break;
+            case 4:
+            // нужен фикс для всех запусков
+                pid_display = fork();
+                //передать в аргумент путь до lcd_fifo
+                ///home/pi/../encoder_fifo
+                static char *argv_display[] = {"lcd", "../encoder/encoder_fifo"};
+                if (pid_display) {
+                    execv("../lcd/lcd", argv_display);
+                }
+                break;
+        }
+        // } else if (command == "start display") {
+            // pid_display = fork();
             // передать в аргумент путь до lcd_fifo
             // /home/pi/../encoder_fifo
-            static char *argv_display[] = {"lcd", "/home/pi/../encoder_fifo"};
-            if (pid_display) {
-                execv("../lcd/lcd", argv_display);
-            }
+            // static char *argv_display[] = {"lcd", "/home/pi/../encoder_fifo"};
+            // if (pid_display) {
+            //     execv("../lcd/lcd", argv_display);
+            // }
 
-        } else if (command == "start encoder") {
-            pid_encoder = fork();
-            static char argv_encoder[] = {"../encoder/encoder", "-q"};
-            if (pid_encoder) {
-                execv("../encoder/encoder", argv_encoder);
-            }
-
-        } else if (command == "set time") {
-            printf("Enter time :");
-            pthread_mutex_lock(&mutex_time);
-            scanf("%d\n", &_time);
-            printf("Установленно новое время %ld \n", _time);
-            pthread_mutex_unlock(&mutex_time);
-        } else {
-            printf("Undefined command \n");
-        }
+        // } else if (command == "start encoder") {
+        //     // pid_encoder = fork();
+        //     // static char argv_encoder[] = {"../encoder/encoder", "-q"};
+        //     // if (pid_encoder) {
+        //     //     execv("../encoder/encoder", argv_encoder);
+        //     // }
+ы
+        // } else if (command == "set time") {
+        //     printf("Enter time :");
+        //     pthread_mutex_lock(&mutex_time);
+        //     scanf("%d\n", &_time);
+        //     printf("Установленно новое время %ld \n", _time);
+        //     pthread_mutex_unlock(&mutex_time);
+        // } else {
+        //     printf("Undefined command \n");
+        // }
     }
 }
 
@@ -105,7 +117,7 @@ static void *time_counter()
     while(1) {
         sleep(1);
         pthread_mutex_lock(&mutex_time);
-        printf("Текущие время : %ld\n", _time);
+        // printf("Текущие время : %ld\n", _time);
         _time++;
 
         pthread_mutex_unlock(&mutex_time);
@@ -145,10 +157,10 @@ static void *button_handler(void *argv)
 
         // кнопка нажата button_record = true
         if (!atoi(&value_)) {
-            printf("Кнопка нажата!\n");
+            // printf("Кнопка нажата!\n");
             button_record = true;    
         } else {
-            printf("Кнопка не нажата!\n");
+            // printf("Кнопка не нажата!\n");
             button_record = false;
         }
 
@@ -230,9 +242,9 @@ int main(int argc, char **argv)
     pthread_create(&thread_button_handler, NULL, button_handler, NULL);
     pthread_create(&thread_pipe_handler, NULL, pipe_handler, (void *)argv[1]);
     pthread_create(&thread_time, NULL, time_counter, NULL);
-    pthread_create(&thread_console, NULL, thread_console, NULL);
+    pthread_create(&thread_console, NULL, thread_console_check, NULL);
 
-    pthread_join(&thread, NULL);
+    pthread_join(thread_console, NULL);
     if (signal_exit) {
         printf("Program close!\n");
         exit(0);

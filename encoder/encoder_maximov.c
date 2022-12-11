@@ -39,7 +39,7 @@
 #define GPIO_PIN_A 8
 #define GPIO_PIN_B 11
 
-spthread_mutext_t mutex_signal_exit = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_signal_exit = PTHREAD_MUTEX_INITIALIZER;
 
 int quiet = 0;
 int pos = 0;
@@ -48,25 +48,29 @@ bool signal_exit;
 static void *signal_catch()
 {
   int fd;
-  char signalch[1];
+  char signalch = '0';
   int signaldec;
+  fd = open("/home/pi/IVT_32/cursach_step6/combiner/signal_encoder", O_RDONLY | O_NONBLOCK);
+
   while (1) {
-      fd = open("../signal_encoder", O_WRONLY);
+      sleep(1);
       if (fd == -1) {
         printf("Failed open to singal_encoder\n");
       }
 
-      read(fd, (void *)signalch, sizeof(signach));
+      read(fd, (void *)&signalch, sizeof(char));
 
-      signaldec = atoi(signalch);
+      signaldec = atoi(&signalch);
+
       pthread_mutex_lock(&mutex_signal_exit);
       if (signaldec) {
           signal_exit = true;
+          printf("Signal exit !\n");
+          exit(0);
+          pthread_exit(NULL);
       }
-      pthread_mutex_unclock(&mutex_signal_exit);
-      if (signal_exit) {
-        exit(0);
-      } 
+      pthread_mutex_unlock(&mutex_signal_exit);
+      
   }
 }
 
@@ -158,25 +162,24 @@ int main(int argc, char *argv[])
 
   pthread_create(&thread_signal, NULL, signal_catch, NULL);
   pthread_create(&thread, NULL, print_while, NULL);
-  pthread_join(&thread_signal);
-  pthread_mutex_lock(&mutex_signal_exit);
-  if (signal_exit) {
-    exit(0);
-  }
-  pthread_mutex_unclock(&mutex_signal_exit);
 
-  pthread_join(&thread);
+  pthread_detach(thread);
 
   ret = mkfifo(encoder_fifo, 0666);
   
   if (gpioInitialise() < 0) {
     return 1;
   }
+  pthread_detach(thread_signal);
+  pthread_mutex_lock(&mutex_signal_exit);
+  pthread_mutex_unlock(&mutex_signal_exit);
 
   renc = Pi_Renc(GPIO_PIN_A, GPIO_PIN_B, callback);
   sleep(300);
   Pi_Renc_cancel(renc);
   fflush(stdout);
   gpioTerminate();
+
+  
 
 }
