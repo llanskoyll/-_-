@@ -1,11 +1,16 @@
 #include "combiner.h"
 
+#define PATH_VALUE_DRIVER "/sys/module/parameters/value"
+
 pthread_mutex_t mutex_button_record = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_time = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_signal_exit = PTHREAD_MUTEX_INITIALIZER;
 
 bool button_record;
 bool signal_exit;
+unsigned int value = 0;
+unsigned int value_pref = 0;
+
 time_t _time;
 
 static void *thread_console_check()
@@ -128,6 +133,21 @@ static void *time_counter()
         ret = write(fd, time_to_lcd, sizeof(time_to_lcd));
         if (ret == -1) {
             printf("Failed write to pipe time_to_lcd!\n");
+        }
+        close(fd);
+
+        fd = open(PATH_VALUE_DRIVER, O_WRONLY);
+        if (fd == -1){
+            printf("Failed open to drive value file\n");
+        }
+        value_pref = value;
+        ret = write(fd, value, sizeof(value));
+        if (ret == -1) {
+            printf("Failed write to drive value\n");
+        }
+        
+        if (!(value_pref == value)) {
+            printf("Value : %d\n", value);
         }
         close(fd);
     }
