@@ -29,50 +29,50 @@ static struct file_opeations fops =
 };
 
 // не факт, что понадобится
-static ssize_t etx_write(struct file *filp, const char *buf, size_t len, loff_t * off);
-static ssize_t etx_open(struct inode *inode, struct file *file);
-static ssize_t etx_release(struct file *filp, struct file *file);
+// static ssize_t etx_write(struct file *filp, const char *buf, size_t len, loff_t * off);
+// static ssize_t etx_open(struct inode *inode, struct file *file);
+// static ssize_t etx_release(struct file *filp, struct file *file);
 
-int notify_param(const char *val, const struct kernel_param *kp)
-{
-    int res = param_set_int(val, kp);
+// int notify_param(const char *val, const struct kernel_param *kp)
+// {
+//     int res = param_set_int(val, kp);
     
-    if (res == 0) {
-        if (value == 0) {
-            printk(KERN_INFO "Falling irq and current value = %d\n", value);
-        } else if (value == 1) {
-            printk(KERN_INFO "Rising irq and current value = %d\n", value);
-        }
-        return 0;
+//     if (res == 0) {
+//         if (value == 0) {
+//             printk(KERN_INFO "Falling irq and current value = %d\n", value);
+//         } else if (value == 1) {
+//             printk(KERN_INFO "Rising irq and current value = %d\n", value);
+//         }
+//         return 0;
     
-    }
+//     }
 
-    return -1;
-}
+//     return -1;
+// }
 
-const struct kernel_param_ops my_param_ops = 
-{
-    .set = &notify_param,
-    .get = &param_get_int,
-}
+// const struct kernel_param_ops my_param_ops = 
+// {
+//     .set = &notify_param,
+//     .get = &param_get_int,
+// }
 
 module_param_cb(value, &my_param_ops, &value, S_IRUGO | S_IWUSR);
 
 static irqreturn_t gpio_irq_handler_rising(int irq, void* dev_id)
 {
     // запись в файл value - 1
-    ext_open();
-    etx_write();
-
+    //ext_open();
+    //etx_write();
+    value = 1;
     return IRQ_HANDLED;
 }
 
 static irqreturn_t gpio_irq_handler_falling(int iqr, void* dev_id)
 {
     // запись в файл value - 0
-    ext_open();
-    etx_write();
-
+    //ext_open();
+    //etx_write();
+    value = 0;
     return IRQ_HANDLED;
 }
 
