@@ -141,7 +141,7 @@ void lcd_data(uint8_t data) {
 void lcd_buffer(uint8_t* data, uint32_t len) {
     gpio_set_value(LCD_PIN_DC, LCD_MODE_DATA);
     uint32_t num_chunks = len / SPI_CHUNK_SIZE;
-    printf("Chunks: %d, total: %d\n", num_chunks, len);
+    // printf("Chunks: %d, total: %d\n", num_chunks, len);
     for(int i = 0; i < num_chunks; i++) {
         spi_write_chunk(data + i * SPI_CHUNK_SIZE, SPI_CHUNK_SIZE);;
     }

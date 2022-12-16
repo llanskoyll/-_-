@@ -50,9 +50,9 @@ static void *signal_catch()
   int fd;
   char signalch = '0';
   int signaldec;
-  fd = open("/home/pi/IVT_32/cursach_step6/combiner/signal_encoder", O_RDONLY | O_NONBLOCK);
 
   while (1) {
+      fd = open("/home/pi/IVT_32_Maximov/cursach/combiner/signal_encoder", O_RDONLY | O_NONBLOCK);
       sleep(1);
       if (fd == -1) {
         printf("Failed open to singal_encoder\n");
@@ -70,6 +70,7 @@ static void *signal_catch()
           pthread_exit(NULL);
       }
       pthread_mutex_unlock(&mutex_signal_exit);
+      close(fd);
       
   }
 }
@@ -128,8 +129,8 @@ void *print_while(void *args) {
     time_t mytime = time(NULL);
     char *time_str = ctime(&mytime);
     time_str[strlen(time_str) - 1] = '\0';
-    printf("Current time: %s\r\n", time_str);
-    printf("Current value position: %d\r\n", pos);
+    // printf("Current time: %s\r\n", time_str);
+    // printf("Current value position: %d\r\n", pos);
   }
 }
 

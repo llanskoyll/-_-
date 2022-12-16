@@ -35,8 +35,9 @@ void *signal_catch()
             if (signaldec) {
                 signal_exit = true;
                 printf("Signal Exit\n");
+                printf("Stop display!\n");
                 close(fd);
-                pthread_exit(NULL);
+                exit(0);
             }
         pthread_mutex_unlock(&mutex_signal_exit);
 
@@ -49,7 +50,6 @@ void demo_text(char* text) {
 
     gdImagePtr im = gdImageCreateTrueColor(LCD_WIDTH, LCD_HEIGHT);
     int white = gdImageColorAllocate(im, 255, 255, 255);
-
     char buff[STRING_LENGTH + 1];
     int str_ptr = 0;
     int num_str = 0;
@@ -85,18 +85,13 @@ int main(int argc, char* argv[]) {
 
     pthread_detach(thread_signal);
 while (1) {
-    pthread_mutex_lock(&mutex_signal_exit); 
-        if (signal_exit) {
-            exit(0);
-        }
-    pthread_mutex_unlock(&mutex_signal_exit);
+    sleep(1);
     fd = open(argv[1], O_RDONLY);
     if (fd == -1) {
         printf("Failed to open\r\n");
     }
-    printf("\r\n%s\r\n", argv[1]);
     read(fd, str, 10);
-    printf("\r\n%s\r\n", str);
+    // printf("%s\n", str);
     demo_text(str);
     close(fd);
 }
