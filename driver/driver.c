@@ -18,7 +18,7 @@ static struct class *dev_class;
 static struct cdev ext_cdev;
 unsigned int value = 0;
 unsigned int GPIO_irqNumber;
-const char *path_to_write_value = "/home/pi/..." // для примера
+// const char *path_to_write_value = "/home/pi/..." // для примера
 
 static struct file_opeations fops =
 {
@@ -50,11 +50,11 @@ static struct file_opeations fops =
 //     return -1;
 // }
 
-// const struct kernel_param_ops my_param_ops = 
-// {
-//     .set = &notify_param,
-//     .get = &param_get_int,
-// }
+const struct kernel_param_ops my_param_ops = 
+{
+    .set = NULL,
+    .get = NULL,
+}
 
 module_param_cb(value, &my_param_ops, &value, S_IRUGO | S_IWUSR);
 
