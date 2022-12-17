@@ -63,16 +63,12 @@ static irqreturn_t gpio_irq_handler_rising(int irq, void* dev_id)
     // запись в файл value - 1
     //ext_open();
     //etx_write();
-    value = 1;
-    return IRQ_HANDLED;
-}
+    if (value)  {
+        value = 0;
+    } else {
+        value = 1;
+    }
 
-static irqreturn_t gpio_irq_handler_falling(int iqr, void* dev_id)
-{
-    // запись в файл value - 0
-    //ext_open();
-    //etx_write();
-    value = 0;
     return IRQ_HANDLED;
 }
 
@@ -128,13 +124,7 @@ static int __init driver_init(void)
         gpio_free(GPIO26);
         return -1;
     }
-    
-    if (request_irq(GPIO_irqNumber, (void *)gpio_irq_handler_falling,
-                    IRQF_TRIGGER_FALLING, "gpio_device", NULL)) {
-        pr_err("gpio_device : cannot register falling IRQ\n");
-        gpio_free(GPIO26);
-        return -1;
-    }
+
     pr_info("Device Driver Insert\n");
 
     return 0;
