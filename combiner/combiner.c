@@ -4,7 +4,7 @@ pthread_mutex_t mutex_button_record = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_time = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_signal_exit = PTHREAD_MUTEX_INITIALIZER;
 
-unsigned int button_record;
+bool button_record;
 bool signal_exit;
 
 time_t _time;
